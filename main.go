@@ -10,7 +10,7 @@ import (
 
 func main() {
 	app := fiber.New(fiber.Config{
-		AppName: "User Service",
+		AppName: "Task-Manager User Service",
 	})
 	app.Use(logger.New())
 	app.Get("/admin/healthchecker", func(c *fiber.Ctx) error {
@@ -21,7 +21,6 @@ func main() {
 	})
 
 	routes.Routes(app)
-	routes.AdminRoutes(app)
 
 	app.All("*", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
