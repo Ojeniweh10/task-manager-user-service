@@ -16,12 +16,10 @@ var userServer servers.UserServer
 
 func (*UserController) RegisterUser(c *fiber.Ctx) error {
 	var data models.RegisterUser
-	data.Deviceid = c.Get("deviceid")
-	data.Timezone = c.Get("timezone")
 	if err := c.BodyParser(&data); err != nil {
 		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
 	}
-	if data.Timezone == "" || data.Deviceid == "" || data.Email == "" || data.Password == "" {
+	if data.Email == "" || data.Password == "" {
 		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
 	}
 
