@@ -57,7 +57,7 @@ const (
 	USER_FETCHED              = "User(s) fetched successfully"
 	NO_USER                   = "no user found"
 	SECRET_QUESTION_SET       = "2FA set successfully"
-	SECRET_EXIST              = "2FA already exist for user"
+	USER_DOES_NOT_EXIST       = "user does not exist"
 	SECRET_UPDATED            = "2FA successfully updated"
 	WRONG_SECRET_ANSWER       = "wrong secret answer passed"
 	EMAIL_ALREADY_VERIFIED    = "Email address already verified"

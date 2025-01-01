@@ -20,3 +20,13 @@ type User struct {
 	Timezone  string    `json:"timezone"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type LoginUser struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type UserLoginRequest struct {
+	Email    string `json:"email" validate:"required"`
+	Password string `json:"password" validate:"required"`
+}

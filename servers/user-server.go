@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/ojeniweh10/task-manager-user-service/config"
 	"github.com/ojeniweh10/task-manager-user-service/database"
 	"github.com/ojeniweh10/task-manager-user-service/models"
 	"github.com/ojeniweh10/task-manager-user-service/utils"
 )
+
+var jwtSecret = []byte(config.SecretKey)
 
 type UserServer struct{}
 
@@ -81,4 +85,41 @@ func saveUserToDatabase(user models.User) (int64, error) {
 	}
 
 	return userID, nil
+}
+
+func (UserServer) AuthenticateUser(data models.LoginUser) (string, *models.User, error) {
+	// Find the user by email
+	existingUser, err := findUserByEmail(data.Email)
+	if err != nil {
+		return "", nil, fmt.Errorf("error checking existing user: %v", err)
+	}
+
+	if existingUser == nil {
+		return "", nil, errors.New("user does not exist")
+	}
+
+	// Verify the provided password with the stored hash
+	if err := utils.CheckPassword(data.Password, existingUser.Password); err != nil {
+		return "", nil, errors.New("invalid credentials")
+	}
+
+	// Generate a JWT token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": existingUser.ID,
+		"email":   existingUser.Email,
+		"iat":     time.Now().Unix(),
+		"exp":     time.Now().Add(1 * time.Hour).Unix(), // Token expires in 1 hour
+	})
+
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		return "", nil, fmt.Errorf("error generating token: %v", err)
+	}
+
+	return tokenString, &models.User{
+		ID:        existingUser.ID,
+		Email:     existingUser.Email,
+		Timezone:  existingUser.Timezone,
+		CreatedAt: existingUser.CreatedAt,
+	}, nil
 }

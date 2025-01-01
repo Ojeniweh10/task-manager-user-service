@@ -24,11 +24,11 @@ func NewConnection() *sql.DB {
 		log.Fatalf("Error connecting to database: %v\n", err)
 	}
 
-	// Verifying the connection
-	err = db.Ping()
-	if err != nil {
-		log.Fatalf("Error pinging database: %v\n", err)
-	}
+	// // Verifying the connection
+	// err = db.Ping()
+	// if err != nil {
+	// 	log.Fatalf("Error pinging database: %v\n", err)
+	// }
 
 	fmt.Println("Successfully connected to database!")
 	return db

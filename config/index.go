@@ -23,3 +23,5 @@ func Db() dbConfig {
 		Name:     os.Getenv("DB_NAME"),
 	}
 }
+
+var SecretKey = os.Getenv("SECRET_KEY")
