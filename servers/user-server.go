@@ -19,10 +19,9 @@ type UserServer struct{}
 // SetUser handles the business logic of registering a new user
 func (UserServer) SetUser(data models.RegisterUser) (*models.User, error) {
 	existingUser, err := findUserByEmail(data.Email)
-	if err != nil {
-		return nil, fmt.Errorf("error checking existing user: %v", err)
-	}
-
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error checking existing user: %v", err)
+	// }
 	if existingUser != nil {
 		return nil, errors.New("user already exists with the given email")
 	}
@@ -34,7 +33,6 @@ func (UserServer) SetUser(data models.RegisterUser) (*models.User, error) {
 	user := models.User{
 		Email:     data.Email,
 		Password:  hashedPassword,
-		Timezone:  data.Timezone,
 		CreatedAt: time.Now(),
 	}
 
@@ -53,9 +51,9 @@ func (UserServer) SetUser(data models.RegisterUser) (*models.User, error) {
 func findUserByEmail(email string) (*models.User, error) {
 	// Query the database for an existing user
 	db := database.NewConnection()
-	query := "SELECT id, email, password, created_at FROM users WHERE email = ?"
+	query := "SELECT id, email, password FROM users WHERE email = ?"
 	var user models.User
-	err := db.QueryRow(query, email).Scan(&user.ID, &user.Email, &user.Password, &user.CreatedAt)
+	err := db.QueryRow(query, email).Scan(&user.ID, &user.Email, &user.Password)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			return nil, nil
@@ -74,7 +72,7 @@ func saveUserToDatabase(user models.User) (int64, error) {
 	query := "INSERT INTO users (email, password, created_at) VALUES (?, ?, ?)"
 
 	// Execute the insert statement
-	result, err := db.Exec(query, user.Email, user.Password, user.Deviceid, user.Timezone, user.CreatedAt)
+	result, err := db.Exec(query, user.Email, user.Password, user.CreatedAt)
 	if err != nil {
 		return 0, err
 	}
@@ -117,9 +115,7 @@ func (UserServer) AuthenticateUser(data models.LoginUser) (string, *models.User,
 	}
 
 	return tokenString, &models.User{
-		ID:        existingUser.ID,
-		Email:     existingUser.Email,
-		Timezone:  existingUser.Timezone,
-		CreatedAt: existingUser.CreatedAt,
+		ID:    existingUser.ID,
+		Email: existingUser.Email,
 	}, nil
 }
