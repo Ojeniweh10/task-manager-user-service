@@ -119,3 +119,39 @@ func (UserServer) AuthenticateUser(data models.LoginUser) (string, *models.User,
 		Email: existingUser.Email,
 	}, nil
 }
+
+func (UserServer) UpdatePassword(data models.Changepassword) error {
+	existingUser, err := findUserByEmail(data.Email)
+	if err != nil {
+		return fmt.Errorf("error checking existing user: %v", err)
+	}
+	if existingUser == nil {
+		return errors.New("user not found")
+	}
+	if err := utils.CheckPassword(data.Old_password, existingUser.Password); err != nil {
+		return errors.New("old password is incorrect")
+	}
+	hashedNewPassword, err := utils.HashPassword(data.New_password)
+	if err != nil {
+		return fmt.Errorf("error hashing new password: %v", err)
+	}
+
+	// Update the password in the database
+	err = updatePasswordInDatabase(existingUser.ID, hashedNewPassword)
+	if err != nil {
+		return fmt.Errorf("error updating password in the database: %v", err)
+	}
+
+	return nil
+}
+
+func updatePasswordInDatabase(userID int64, newPassword string) error {
+	db := database.NewConnection()
+	query := "UPDATE users SET password = ? WHERE id = ?"
+	_, err := db.Exec(query, newPassword, userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

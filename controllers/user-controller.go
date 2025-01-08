@@ -57,3 +57,36 @@ func (*UserController) Login(c *fiber.Ctx) error {
 		"user":  res,
 	}, 200)
 }
+
+func (*UserController) Changepassword(c *fiber.Ctx) error {
+	var body models.Changepassword
+	if err := c.BodyParser(&body); err != nil {
+		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
+	}
+	// Get the session token from the Authorization header (Bearer token)
+	token := c.Get("Authorization")
+
+	// If no token is provided, return an error response
+	if token == "" {
+		return responses.ErrorResponse(c, "Missing authentication token", 401)
+	}
+
+	// Validate the token to extract user info (
+	email, err := utils.ValidateToken(token)
+	if err != nil {
+		return responses.ErrorResponse(c, "Invalid or expired token", 401)
+	}
+
+	body.Email = email
+
+	if body.Email == "" || body.Old_password == "" || body.New_password == "" {
+		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
+	}
+	if body.Old_password == body.New_password {
+		return responses.ErrorResponse(c, responses.PASSWORD_REUSE, 400)
+	}
+	if err := userServer.UpdatePassword(body); err != nil {
+		return responses.ErrorResponse(c, err.Error(), 400)
+	}
+	return responses.SuccessResponse(c, responses.PASSWORD_CHANGED, nil, 200)
+}

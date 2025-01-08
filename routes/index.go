@@ -10,4 +10,5 @@ var UserController controllers.UserController
 func Routes(app *fiber.App) {
 	app.Post("/register", UserController.RegisterUser)
 	app.Post("/login", UserController.Login)
+	app.Patch("/change-password", UserController.Changepassword)
 }
