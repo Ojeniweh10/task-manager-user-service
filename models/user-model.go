@@ -31,3 +31,8 @@ type Changepassword struct {
 	Old_password string `json:"old_password"`
 	New_password string `json:"new_password"`
 }
+
+type ChangeEmail struct {
+	Email            string `json:"email"`
+	Current_password string `json:"current_password"`
+}

@@ -72,7 +72,7 @@ func (*UserController) Changepassword(c *fiber.Ctx) error {
 	}
 
 	// Validate the token to extract user info (
-	email, err := utils.ValidateToken(token)
+	email, userID, err := utils.ValidateToken(token)
 	if err != nil {
 		return responses.ErrorResponse(c, "Invalid or expired token", 401)
 	}
@@ -85,8 +85,36 @@ func (*UserController) Changepassword(c *fiber.Ctx) error {
 	if body.Old_password == body.New_password {
 		return responses.ErrorResponse(c, responses.PASSWORD_REUSE, 400)
 	}
-	if err := userServer.UpdatePassword(body); err != nil {
+	if err := userServer.UpdatePassword(body, userID); err != nil {
 		return responses.ErrorResponse(c, err.Error(), 400)
 	}
 	return responses.SuccessResponse(c, responses.PASSWORD_CHANGED, nil, 200)
+}
+
+func (*UserController) ChangeEmail(c *fiber.Ctx) error {
+	var body models.ChangeEmail
+	if err := c.BodyParser(&body); err != nil {
+		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
+	}
+	token := c.Get("Authorization")
+	if token == "" {
+		return responses.ErrorResponse(c, "Missing authentication token", 401)
+	}
+
+	// Validate the token to extract user info (email, user_id)
+	email, userID, err := utils.ValidateToken(token)
+	if err != nil {
+		return responses.ErrorResponse(c, "Invalid or expired token", 401)
+	}
+
+	body.Email = email
+	if body.Email == "" || body.Current_password == "" {
+		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
+	}
+
+	if err := userServer.UpdateEmail(body, userID); err != nil {
+		return responses.ErrorResponse(c, err.Error(), 400)
+	}
+
+	return responses.SuccessResponse(c, responses.EMAIL_CHANGED, nil, 200)
 }

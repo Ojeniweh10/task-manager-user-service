@@ -49,6 +49,7 @@ const (
 	USER_CREATED              = "Account Successfully Created"
 	OTP_SENT                  = "OTP has been successfully sent to your telephone"
 	PASSWORD_CHANGED          = "Password successfully updated"
+	EMAIL_CHANGED             = "Email successfully updated"
 	WRONG_PASSWORD            = "wrong password passed"
 	SOMETHING_WRONG           = "ooops! something went wrong. Please try again"
 	INVALID_EMAIL_OTP         = "Wrong or expired email Otp passed"

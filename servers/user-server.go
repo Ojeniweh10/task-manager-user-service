@@ -65,6 +65,22 @@ func findUserByEmail(email string) (*models.User, error) {
 	return &user, nil
 }
 
+// find a user by their ID
+func findUserByID(userID int64) (*models.User, error) {
+	db := database.NewConnection()
+	query := "SELECT id, email, password FROM users WHERE id = ?"
+	var user models.User
+	err := db.QueryRow(query, userID).Scan(&user.ID, &user.Email, &user.Password)
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 // saveUserToDatabase inserts a new user into the database
 func saveUserToDatabase(user models.User) (int64, error) {
 	// Prepare the query to insert a new user
@@ -120,7 +136,7 @@ func (UserServer) AuthenticateUser(data models.LoginUser) (string, *models.User,
 	}, nil
 }
 
-func (UserServer) UpdatePassword(data models.Changepassword) error {
+func (UserServer) UpdatePassword(data models.Changepassword, userID int64) error {
 	existingUser, err := findUserByEmail(data.Email)
 	if err != nil {
 		return fmt.Errorf("error checking existing user: %v", err)
@@ -149,6 +165,47 @@ func updatePasswordInDatabase(userID int64, newPassword string) error {
 	db := database.NewConnection()
 	query := "UPDATE users SET password = ? WHERE id = ?"
 	_, err := db.Exec(query, newPassword, userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (UserServer) UpdateEmail(data models.ChangeEmail, userID int64) error {
+	existingUser, err := findUserByID(userID)
+	if err != nil {
+		return fmt.Errorf("error checking existing user: %v", err)
+	}
+	if existingUser == nil {
+		return errors.New("user not found")
+	}
+
+	if err := utils.CheckPassword(data.Current_password, existingUser.Password); err != nil {
+		return errors.New("invalid credentials")
+	}
+
+	// Check if the new email is already in use
+	newEmailUser, err := findUserByEmail(data.Email)
+	if err != nil {
+		return fmt.Errorf("error checking new email: %v", err)
+	}
+	if newEmailUser != nil {
+		return errors.New("email is already in use")
+	}
+
+	err = updateEmailInDatabase(userID, data.Email)
+	if err != nil {
+		return fmt.Errorf("error updating email in the database: %v", err)
+	}
+
+	return nil
+}
+
+func updateEmailInDatabase(userID int64, newEmail string) error {
+	db := database.NewConnection()
+	query := "UPDATE users SET email = ?, updated_at = ? WHERE id = ?"
+	_, err := db.Exec(query, newEmail, time.Now(), userID)
 	if err != nil {
 		return err
 	}
