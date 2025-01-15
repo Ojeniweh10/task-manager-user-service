@@ -229,3 +229,14 @@ func HashPwd(password string) (string, error) {
 	}
 	return string(hash), nil
 }
+
+func DeleteUserFromDatabase(usertag string) error {
+	db := database.NewConnection()
+	query := "DELETE FROM users WHERE usertag = LOWER(?)"
+	_, err := db.Exec(query, usertag)
+	if err != nil {
+		return fmt.Errorf("error executing the delete query: %v", err)
+	}
+
+	return nil
+}

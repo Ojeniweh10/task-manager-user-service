@@ -47,6 +47,7 @@ const (
 	INVALID_OTP               = "invalid or expired Otp passed"
 	TELEPHONE_VERIFIED        = "Telephone Successfully verified"
 	USER_CREATED              = "Account Successfully Created"
+	USER_DELETED              = "Account Successfully Deleted"
 	OTP_SENT                  = "OTP has been successfully sent to your telephone"
 	PASSWORD_CHANGED          = "Password successfully updated"
 	EMAIL_CHANGED             = "Email successfully updated"

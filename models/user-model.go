@@ -51,3 +51,8 @@ type ResetPasswordRequest struct {
 	Token       string `json:"token"`
 	NewPassword string `json:"new_password"`
 }
+
+type DeleteAccountReq struct {
+	Usertag         string `json:"usertag"`
+	CurrentPassword string `json:"current_password"`
+}

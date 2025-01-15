@@ -14,5 +14,6 @@ func Routes(app *fiber.App) {
 	app.Patch("/change-email", UserController.ChangeEmail)
 	app.Post("/forgot-password", UserController.ForgotPassword)
 	app.Post("/reset-password", UserController.ResetPassword)
+	app.Post("/delete-account", UserController.DeleteAccount)
 
 }

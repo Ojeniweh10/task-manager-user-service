@@ -135,3 +135,19 @@ func (UserController) ResetPassword(c *fiber.Ctx) error {
 
 	return responses.SuccessResponse(c, "Password successfully reset", nil, 200)
 }
+
+func (UserController) DeleteAccount(c *fiber.Ctx) error {
+	var body models.DeleteAccountReq
+	if err := c.BodyParser(&body); err != nil {
+		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
+	}
+	body.Usertag = c.Get("usertag")
+	if body.Usertag == "" || body.CurrentPassword == "" {
+		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
+	}
+	err := userServer.DeleteAccount(body)
+	if err != nil {
+		return responses.ErrorResponse(c, err.Error(), 400)
+	}
+	return responses.SuccessResponse(c, responses.USER_DELETED, nil, 200)
+}

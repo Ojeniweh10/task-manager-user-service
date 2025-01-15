@@ -232,3 +232,22 @@ func (UserServer) HandleResetPassword(data models.ResetPasswordRequest) error {
 
 	return nil
 }
+
+func (UserServer) DeleteAccount(data models.DeleteAccountReq) error {
+	existingUser, err := utils.FindUserByTag(data.Usertag)
+	if err != nil {
+		return fmt.Errorf("error checking existing user: %v", err)
+	}
+	if existingUser == nil {
+		return errors.New("user not found")
+	}
+	if err := utils.CheckPassword(data.CurrentPassword, existingUser.Password); err != nil {
+		return errors.New("invalid password")
+	}
+	err = utils.DeleteUserFromDatabase(data.Usertag)
+	if err != nil {
+		return fmt.Errorf("error deleting user account from the database: %v", err)
+	}
+
+	return nil
+}
