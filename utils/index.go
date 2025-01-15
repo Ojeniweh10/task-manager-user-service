@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/gomail.v2"
+
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/ojeniweh10/task-manager-user-service/config"
 	"github.com/ojeniweh10/task-manager-user-service/database"
@@ -161,4 +163,69 @@ func FindUserByTag(usertag string) (*models.User, error) {
 	}
 
 	return &user, nil
+}
+
+func GenerateResetToken(email string) (string, error) {
+	expiration := time.Now().Add(1 * time.Hour).Unix()
+	claims := jwt.MapClaims{
+		"email": email,
+		"exp":   expiration,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
+}
+
+// Validates a reset token
+func ValidateResetToken(token string) (string, error) {
+	parsedToken, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+	if err != nil || !parsedToken.Valid {
+		return "", errors.New("invalid or expired reset token")
+	}
+	claims := parsedToken.Claims.(jwt.MapClaims)
+	email := claims["email"].(string)
+	return email, nil
+}
+
+func SendResetEmail(email string, token string) error {
+	resetURL := fmt.Sprintf("http://localhost:8081/reset-password?token=%s", token)
+
+	// Email content
+	subject := "Password Reset Request"
+	body := fmt.Sprintf("To reset your password, click the link below:\n\n%s\n\nIf you did not request this, please ignore this email.", resetURL)
+
+	// SMTP configuration
+	mailer := gomail.NewMessage()
+	mailer.SetHeader("From", config.AppEmail)
+	mailer.SetHeader("To", email)
+	mailer.SetHeader("Subject", subject)
+	mailer.SetBody("text/plain", body)
+
+	// SMTP server configuration
+	dialer := gomail.NewDialer("smtp.gmail.com", 587, config.AppEmail, config.AppPassword)
+
+	// Send the email
+	if err := dialer.DialAndSend(mailer); err != nil {
+		fmt.Printf("Failed to send email to %s: %v\n", email, err)
+		return err
+	}
+	fmt.Printf("Password reset email sent to %s\n", email)
+	return nil
+}
+
+func UpdateUserPassword(email string, hashedPassword string) error {
+	db := database.NewConnection()
+	query := "UPDATE users SET password = LOWER(?), updated_at = LOWER(?) WHERE email = LOWER(?)"
+	_, err := db.Exec(query, hashedPassword, time.Now(), email)
+	return err
+}
+
+func HashPwd(password string) (string, error) {
+	// bcrypt.DefaultCost is typically 10, which balances security and performance
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
 }

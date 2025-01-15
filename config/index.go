@@ -25,3 +25,5 @@ func Db() dbConfig {
 }
 
 var SecretKey = os.Getenv("SECRET_KEY")
+var AppPassword = os.Getenv("APP_PASSWORD")
+var AppEmail = os.Getenv("APP_EMAIL")

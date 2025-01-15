@@ -42,3 +42,12 @@ type ChangeEmail struct {
 	Email            string `json:"email"`
 	Current_password string `json:"current_password"`
 }
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}

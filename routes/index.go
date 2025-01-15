@@ -12,4 +12,7 @@ func Routes(app *fiber.App) {
 	app.Post("/login", UserController.Login)
 	app.Patch("/change-password", UserController.ChangePassword)
 	app.Patch("/change-email", UserController.ChangeEmail)
+	app.Post("/forgot-password", UserController.ForgotPassword)
+	app.Post("/reset-password", UserController.ResetPassword)
+
 }

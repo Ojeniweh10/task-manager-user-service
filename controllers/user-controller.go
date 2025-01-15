@@ -101,3 +101,37 @@ func (*UserController) ChangeEmail(c *fiber.Ctx) error {
 
 	return responses.SuccessResponse(c, responses.EMAIL_CHANGED, nil, 200)
 }
+
+func (UserController) ForgotPassword(c *fiber.Ctx) error {
+	var body models.ForgotPasswordRequest
+	if err := c.BodyParser(&body); err != nil {
+		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
+	}
+
+	if body.Email == "" {
+		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
+	}
+
+	if err := userServer.HandleForgotPassword(body.Email); err != nil {
+		return responses.ErrorResponse(c, err.Error(), 400)
+	}
+
+	return responses.SuccessResponse(c, "Password reset instructions sent", nil, 200)
+}
+
+func (UserController) ResetPassword(c *fiber.Ctx) error {
+	var body models.ResetPasswordRequest
+	if err := c.BodyParser(&body); err != nil {
+		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
+	}
+
+	if body.Token == "" || body.NewPassword == "" {
+		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
+	}
+
+	if err := userServer.HandleResetPassword(body); err != nil {
+		return responses.ErrorResponse(c, err.Error(), 400)
+	}
+
+	return responses.SuccessResponse(c, "Password successfully reset", nil, 200)
+}

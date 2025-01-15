@@ -195,3 +195,40 @@ func checkPassword(usertag, password string) bool {
 	}
 	return false
 }
+
+func (UserServer) HandleForgotPassword(email string) error {
+	// Check if the email exists in the database
+	user, err := utils.FindUserByEmail(email)
+	if err != nil || user == nil {
+		return fmt.Errorf("email not found")
+	}
+
+	// Generate reset token
+	token, err := utils.GenerateResetToken(email)
+	if err != nil {
+		return fmt.Errorf("could not generate reset token")
+	}
+
+	// Send email with the reset token
+	if err := utils.SendResetEmail(email, token); err != nil {
+		return fmt.Errorf("could not send reset email")
+	}
+
+	return nil
+}
+
+func (UserServer) HandleResetPassword(data models.ResetPasswordRequest) error {
+	email, err := utils.ValidateResetToken(data.Token)
+	if err != nil {
+		return fmt.Errorf("invalid or expired reset token")
+	}
+	hashedPassword, err := utils.HashPwd(data.NewPassword)
+	if err != nil {
+		return fmt.Errorf("failed to hash password")
+	}
+	if err := utils.UpdateUserPassword(email, hashedPassword); err != nil {
+		return fmt.Errorf("failed to update password")
+	}
+
+	return nil
+}
