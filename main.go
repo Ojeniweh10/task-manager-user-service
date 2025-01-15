@@ -1,11 +1,17 @@
 package main
 
 import (
+	"bufio"
+	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/elastic/go-elasticsearch"
+	"github.com/elastic/go-elasticsearch/esapi"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/golang-jwt/jwt/v4"
@@ -14,6 +20,55 @@ import (
 )
 
 var jwtSecret = []byte(config.SecretKey)
+
+func sendToElasticsearch() {
+	cfg := elasticsearch.Config{
+		Addresses: []string{
+			"http://localhost:9200",
+		},
+	}
+
+	es, err := elasticsearch.NewClient(cfg)
+	if err != nil {
+		log.Fatalf("Error creating the client: %s", err)
+	}
+
+	file, err := os.Open("audit.log")
+	if err != nil {
+		log.Fatalf("Error opening audit.log: %s", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		var entry AuditLogEntry
+		if err := json.Unmarshal([]byte(scanner.Text()), &entry); err != nil {
+			log.Fatalf("Error parsing JSON: %s", err)
+		}
+
+		body, err := json.Marshal(entry)
+		if err != nil {
+			log.Fatalf("Error marshaling entry to JSON: %s", err)
+		}
+
+		req := esapi.IndexRequest{
+			Index:        "audit_logs",
+			DocumentType: "_doc",
+			DocumentID:   "",
+			Body:         strings.NewReader(string(body)),
+			Refresh:      "true",
+		}
+
+		_, err = req.Do(context.Background(), es)
+		if err != nil {
+			log.Fatalf("Error sending entry to Elasticsearch: %s", err)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatalf("Error reading audit.log: %s", err)
+	}
+}
 
 // JWTMiddleware checks the validity of the token
 func JWTMiddleware(c *fiber.Ctx) error {
@@ -64,6 +119,30 @@ func JWTMiddleware(c *fiber.Ctx) error {
 	return c.Next()
 }
 
+type AuditLogEntry struct {
+	Actor   string      `json:"actor"`
+	Action  string      `json:"action"`
+	Module  string      `json:"module"`
+	When    time.Time   `json:"when"`
+	Details interface{} `json:"details"`
+}
+
+func logAuditEvent(actor string, action string, module string, details interface{}) {
+	entry := AuditLogEntry{
+		Actor:   actor,
+		Action:  action,
+		Module:  module,
+		When:    time.Now(),
+		Details: details,
+	}
+
+	logEntry, _ := json.Marshal(entry)
+	file, _ := os.OpenFile("audit.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	defer file.Close()
+
+	file.WriteString(string(logEntry) + "\n")
+}
+
 func main() {
 	app := fiber.New(fiber.Config{
 		AppName: "Task-Manager User Service",
@@ -85,4 +164,6 @@ func main() {
 		})
 	})
 	log.Fatal(app.Listen(":8081"))
+	logAuditEvent("Mohamed_Gamal", "password_change", "User Settings", "Changed password for security reasons")
+
 }

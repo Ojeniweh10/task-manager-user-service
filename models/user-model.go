@@ -5,15 +5,20 @@ import (
 )
 
 type RegisterUser struct {
-	Email    string `json:"email" validate:"required"`
-	Password string `json:"password" validate:"required"`
+	Email     string `json:"email" validate:"required"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Password  string `json:"password" validate:"required"`
 }
 
 type User struct {
-	ID        int64     `json:"id"`
+	Usertag   string    `json:"usertag"`
 	Email     string    `json:"email"`
 	Password  string    `json:"password"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
 	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type LoginUser struct {
@@ -26,13 +31,14 @@ type UserLoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
-type Changepassword struct {
-	Email        string `json:"email"`
-	Old_password string `json:"old_password"`
-	New_password string `json:"new_password"`
+type ChangePasswordReq struct {
+	Usertag      string `json:"usertag"`
+	Old_password string `json:"old_password" validate:"required"`
+	New_password string `json:"new_password" validate:"required"`
 }
 
 type ChangeEmail struct {
+	Usertag          string `json:"usertag"`
 	Email            string `json:"email"`
 	Current_password string `json:"current_password"`
 }

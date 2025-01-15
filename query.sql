@@ -1,7 +1,9 @@
 
 CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    usertag VARCHAR(20) PRIMARY KEY,  
     email VARCHAR(255) UNIQUE NOT NULL,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -9,33 +11,26 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE (name)  -- Ensures that category names are unique
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+
 CREATE TABLE IF NOT EXISTS tasks (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,  -- Still needed for task-specific operations
     title VARCHAR(255) NOT NULL,
     description TEXT,
     deadline DATETIME,  -- Store the deadline in DateTime format
     category_id INT,  -- Foreign key reference to categories table
-    user_id INT,  -- Foreign key reference to users table
+    usertag VARCHAR(6),  -- Foreign key reference to users(usertag)
     status ENUM('Pending', 'In Progress', 'Completed') DEFAULT 'Pending',  -- Enum for task status
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (usertag) REFERENCES users(usertag) ON DELETE CASCADE
 );
 
-
--- Index for quickly retrieving tasks by category
-CREATE INDEX idx_category_id ON tasks(category_id);
-
--- Index for quickly retrieving tasks by deadline
-CREATE INDEX idx_deadline ON tasks(deadline);
-
--- Index for retrieving tasks by user_id
-CREATE INDEX idx_user_id ON tasks(user_id);
+-- Index for retrieving tasks by usertag
+CREATE INDEX idx_usertag ON tasks(usertag);

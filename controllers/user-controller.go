@@ -19,11 +19,17 @@ func (*UserController) RegisterUser(c *fiber.Ctx) error {
 	if err := c.BodyParser(&data); err != nil {
 		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
 	}
-	if data.Email == "" || data.Password == "" {
+	if data.Email == "" || data.FirstName == "" || data.LastName == "" || data.Password == "" {
 		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
 	}
 
 	data.Email = strings.TrimSpace(data.Email)
+	data.FirstName = utils.CapitilizeName(data.FirstName)
+	data.LastName = utils.CapitilizeName(data.LastName)
+
+	if !utils.IsName(data.FirstName) || !utils.IsName(data.LastName) {
+		return responses.ErrorResponse(c, responses.INVALID_NAME, 400)
+	}
 
 	if !utils.IsEmail(data.Email) {
 		return responses.ErrorResponse(c, responses.INVALID_EMAIL, 400)
@@ -58,34 +64,20 @@ func (*UserController) Login(c *fiber.Ctx) error {
 	}, 200)
 }
 
-func (*UserController) Changepassword(c *fiber.Ctx) error {
-	var body models.Changepassword
+func (*UserController) ChangePassword(c *fiber.Ctx) error {
+	var body models.ChangePasswordReq
 	if err := c.BodyParser(&body); err != nil {
 		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
 	}
-	// Get the session token from the Authorization header (Bearer token)
-	token := c.Get("Authorization")
-
-	// If no token is provided, return an error response
-	if token == "" {
-		return responses.ErrorResponse(c, "Missing authentication token", 401)
-	}
-
-	// Validate the token to extract user info (
-	email, userID, err := utils.ValidateToken(token)
-	if err != nil {
-		return responses.ErrorResponse(c, "Invalid or expired token", 401)
-	}
-
-	body.Email = email
-
-	if body.Email == "" || body.Old_password == "" || body.New_password == "" {
+	body.Usertag = c.Get("user")
+	if body.Old_password == "" || body.Usertag == "" || body.New_password == "" {
 		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
 	}
+
 	if body.Old_password == body.New_password {
 		return responses.ErrorResponse(c, responses.PASSWORD_REUSE, 400)
 	}
-	if err := userServer.UpdatePassword(body, userID); err != nil {
+	if err := userServer.UpdatePassword(body); err != nil {
 		return responses.ErrorResponse(c, err.Error(), 400)
 	}
 	return responses.SuccessResponse(c, responses.PASSWORD_CHANGED, nil, 200)
@@ -96,23 +88,14 @@ func (*UserController) ChangeEmail(c *fiber.Ctx) error {
 	if err := c.BodyParser(&body); err != nil {
 		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
 	}
-	token := c.Get("Authorization")
-	if token == "" {
-		return responses.ErrorResponse(c, "Missing authentication token", 401)
+	body.Usertag = c.Get("usertag")
+	if body.Usertag == "" {
+		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
 	}
-
-	// Validate the token to extract user info (email, user_id)
-	email, userID, err := utils.ValidateToken(token)
-	if err != nil {
-		return responses.ErrorResponse(c, "Invalid or expired token", 401)
-	}
-
-	body.Email = email
 	if body.Email == "" || body.Current_password == "" {
 		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
 	}
-
-	if err := userServer.UpdateEmail(body, userID); err != nil {
+	if err := userServer.UpdateEmail(body, body.Usertag); err != nil {
 		return responses.ErrorResponse(c, err.Error(), 400)
 	}
 

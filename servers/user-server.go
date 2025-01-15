@@ -1,109 +1,77 @@
 package servers
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/ojeniweh10/task-manager-user-service/config"
 	"github.com/ojeniweh10/task-manager-user-service/database"
 	"github.com/ojeniweh10/task-manager-user-service/models"
+	"github.com/ojeniweh10/task-manager-user-service/responses"
 	"github.com/ojeniweh10/task-manager-user-service/utils"
 )
 
 var jwtSecret = []byte(config.SecretKey)
+var db = database.NewConnection()
 
 type UserServer struct{}
 
 // SetUser handles the business logic of registering a new user
 func (UserServer) SetUser(data models.RegisterUser) (*models.User, error) {
-	existingUser, err := findUserByEmail(data.Email)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error checking existing user: %v", err)
-	// }
-	if existingUser != nil {
-		return nil, errors.New("user already exists with the given email")
-	}
-	hashedPassword, err := utils.HashPassword(data.Password)
+	var emailExist bool
+	query := "SELECT EXISTS(SELECT 1 FROM users WHERE email = ?)"
+	err := db.QueryRow(query, data.Email).Scan(&emailExist)
+
 	if err != nil {
-		return nil, fmt.Errorf("error hashing password: %v", err)
+		return nil, fmt.Errorf("error checking email existence: %v", err)
 	}
 
+	if emailExist {
+		return nil, errors.New(responses.EMAIL_EXIST)
+	}
+
+	hashedPassword := utils.HashPassword(data.Password)
+	var usertag string
+	for {
+		usertag = utils.GenerateUsertag(data.FirstName)
+		// Check if the generated usertag already exists in the database
+		existingUsertag, _ := utils.FindUserByUsertag(usertag)
+		if existingUsertag == nil {
+			break
+		}
+	}
+
+	// Create the user object
 	user := models.User{
+		Usertag:   usertag,
 		Email:     data.Email,
+		FirstName: data.FirstName,
+		LastName:  data.LastName,
 		Password:  hashedPassword,
 		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
-	// Save the user to the database
-	userId, err := saveUserToDatabase(user)
-	if err != nil {
-		return nil, fmt.Errorf("error saving user to the database: %v", err)
-	}
-
-	// Assign the ID to the user and return the user data
-	user.ID = userId
-	return &user, nil
-}
-
-// findUserByEmail checks if a user exists in the database by their email
-func findUserByEmail(email string) (*models.User, error) {
-	// Query the database for an existing user
+	insertQuery := `
+		INSERT INTO users (usertag, email, password, first_name, last_name, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`
 	db := database.NewConnection()
-	query := "SELECT id, email, password FROM users WHERE email = ?"
-	var user models.User
-	err := db.QueryRow(query, email).Scan(&user.ID, &user.Email, &user.Password)
+	defer db.Close()
+	_, err = db.Exec(insertQuery, user.Usertag, user.Email, user.Password, user.FirstName, user.LastName, user.CreatedAt, user.UpdatedAt)
 	if err != nil {
-		if err.Error() == "no rows in result set" {
-			return nil, nil
-		}
-		return nil, err
+		return nil, fmt.Errorf("error inserting user into database: %v", err)
 	}
-
-	// Return the user data if found
 	return &user, nil
-}
-
-// find a user by their ID
-func findUserByID(userID int64) (*models.User, error) {
-	db := database.NewConnection()
-	query := "SELECT id, email, password FROM users WHERE id = ?"
-	var user models.User
-	err := db.QueryRow(query, userID).Scan(&user.ID, &user.Email, &user.Password)
-	if err != nil {
-		if err.Error() == "no rows in result set" {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return &user, nil
-}
-
-// saveUserToDatabase inserts a new user into the database
-func saveUserToDatabase(user models.User) (int64, error) {
-	// Prepare the query to insert a new user
-	db := database.NewConnection()
-	query := "INSERT INTO users (email, password, created_at) VALUES (?, ?, ?)"
-
-	// Execute the insert statement
-	result, err := db.Exec(query, user.Email, user.Password, user.CreatedAt)
-	if err != nil {
-		return 0, err
-	}
-	// Retrieve the last inserted ID
-	userID, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return userID, nil
 }
 
 func (UserServer) AuthenticateUser(data models.LoginUser) (string, *models.User, error) {
 	// Find the user by email
-	existingUser, err := findUserByEmail(data.Email)
+	existingUser, err := utils.FindUserByEmail(data.Email)
 	if err != nil {
 		return "", nil, fmt.Errorf("error checking existing user: %v", err)
 	}
@@ -119,7 +87,7 @@ func (UserServer) AuthenticateUser(data models.LoginUser) (string, *models.User,
 
 	// Generate a JWT token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": existingUser.ID,
+		"usertag": existingUser.Usertag,
 		"email":   existingUser.Email,
 		"iat":     time.Now().Unix(),
 		"exp":     time.Now().Add(1 * time.Hour).Unix(), // Token expires in 1 hour
@@ -131,49 +99,43 @@ func (UserServer) AuthenticateUser(data models.LoginUser) (string, *models.User,
 	}
 
 	return tokenString, &models.User{
-		ID:    existingUser.ID,
-		Email: existingUser.Email,
+		Usertag: existingUser.Usertag,
+		Email:   existingUser.Email,
 	}, nil
 }
 
-func (UserServer) UpdatePassword(data models.Changepassword, userID int64) error {
-	existingUser, err := findUserByEmail(data.Email)
-	if err != nil {
-		return fmt.Errorf("error checking existing user: %v", err)
+func (UserServer) UpdatePassword(data models.ChangePasswordReq) error {
+	var password string
+	data.Usertag = strings.TrimSpace(data.Usertag)
+	err := db.QueryRow("SELECT password FROM users WHERE LOWER(usertag) = LOWER(?)", data.Usertag).Scan(&password)
+	if err == sql.ErrNoRows {
+		fmt.Printf("No user found for usertag: %s\n", data.Usertag)
+		return errors.New(responses.SOMETHING_WRONG)
 	}
-	if existingUser == nil {
-		return errors.New("user not found")
-	}
-	if err := utils.CheckPassword(data.Old_password, existingUser.Password); err != nil {
-		return errors.New("old password is incorrect")
-	}
-	hashedNewPassword, err := utils.HashPassword(data.New_password)
-	if err != nil {
-		return fmt.Errorf("error hashing new password: %v", err)
+	passwordCheck := utils.VerifyPassword(data.Old_password, password)
+	if !passwordCheck {
+		return errors.New(responses.WRONG_PASSWORD)
+	} else {
+		fmt.Println("password matches")
 	}
 
-	// Update the password in the database
-	err = updatePasswordInDatabase(existingUser.ID, hashedNewPassword)
+	if checkPassword(data.Usertag, data.New_password) {
+		return errors.New(responses.PASSWORD_REUSE)
+	}
+	new_password := utils.HashPassword(data.New_password)
+	_, err = db.Exec("UPDATE users SET password = ? WHERE usertag = ?", new_password, data.Usertag)
 	if err != nil {
-		return fmt.Errorf("error updating password in the database: %v", err)
+
+		return errors.New(responses.SOMETHING_WRONG)
+	} else {
+		fmt.Println("password updated")
 	}
 
 	return nil
 }
 
-func updatePasswordInDatabase(userID int64, newPassword string) error {
-	db := database.NewConnection()
-	query := "UPDATE users SET password = ? WHERE id = ?"
-	_, err := db.Exec(query, newPassword, userID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (UserServer) UpdateEmail(data models.ChangeEmail, userID int64) error {
-	existingUser, err := findUserByID(userID)
+func (UserServer) UpdateEmail(data models.ChangeEmail, usertag string) error {
+	existingUser, err := utils.FindUserByTag(usertag)
 	if err != nil {
 		return fmt.Errorf("error checking existing user: %v", err)
 	}
@@ -185,8 +147,8 @@ func (UserServer) UpdateEmail(data models.ChangeEmail, userID int64) error {
 		return errors.New("invalid credentials")
 	}
 
-	// Check if the new email is already in use
-	newEmailUser, err := findUserByEmail(data.Email)
+	//Check if the new email is already in use
+	newEmailUser, err := utils.FindUserByEmail(data.Email)
 	if err != nil {
 		return fmt.Errorf("error checking new email: %v", err)
 	}
@@ -194,7 +156,7 @@ func (UserServer) UpdateEmail(data models.ChangeEmail, userID int64) error {
 		return errors.New("email is already in use")
 	}
 
-	err = updateEmailInDatabase(userID, data.Email)
+	err = updateEmailInDatabase(usertag, data.Email)
 	if err != nil {
 		return fmt.Errorf("error updating email in the database: %v", err)
 	}
@@ -202,13 +164,34 @@ func (UserServer) UpdateEmail(data models.ChangeEmail, userID int64) error {
 	return nil
 }
 
-func updateEmailInDatabase(userID int64, newEmail string) error {
+func updateEmailInDatabase(usertag string, newEmail string) error {
 	db := database.NewConnection()
-	query := "UPDATE users SET email = ?, updated_at = ? WHERE id = ?"
-	_, err := db.Exec(query, newEmail, time.Now(), userID)
+	query := "UPDATE users SET email = ?, updated_at = ? WHERE usertag = ?"
+	_, err := db.Exec(query, newEmail, time.Now(), usertag)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func checkPassword(usertag, password string) bool {
+	var old_password string
+	rows, err := db.Query("SELECT password FROM users WHERE wisetag = $1", usertag)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.Scan(&old_password)
+		if err != nil {
+			return false
+		}
+
+		passwordCheck := utils.VerifyPassword(password, old_password)
+		if passwordCheck {
+			return true
+		}
+	}
+	return false
 }

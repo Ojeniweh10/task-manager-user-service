@@ -1,24 +1,33 @@
 package utils
 
 import (
+	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/mail"
-	"strconv"
 	_ "time/tzdata"
 
+	"math/rand"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/ojeniweh10/task-manager-user-service/config"
+	"github.com/ojeniweh10/task-manager-user-service/database"
+	"github.com/ojeniweh10/task-manager-user-service/models"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var jwtSecret = []byte(config.SecretKey)
 
 type TokenClaims struct {
 	Email  string `json:"email"`
-	UserID string `json:"user_id"`
+	UserID int64  `json:"user_id"`
 	jwt.RegisteredClaims
 }
 
@@ -27,25 +36,29 @@ func IsEmail(email string) bool {
 	return err == nil
 }
 
-func VerifyPassword(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	check := true
-
-	if err != nil {
-		check = false
-	}
-	return check
+func CapitilizeName(name string) string {
+	return cases.Title(language.Und).String(strings.TrimSpace(name))
 }
 
-func HashPassword(password string) (string, error) {
-	// Set the bcrypt cost factor (10 is a reasonable default)
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+func IsName(name string) bool {
+	pattern := "^[a-zA-Z]+([-']?[a-zA-Z]+)*( [a-zA-Z]+([-']?[a-zA-Z]+)*){0,1}$"
+	return regexp.MustCompile(pattern).MatchString(strings.TrimSpace(name)) && len(name) >= 3
+}
+
+func VerifyPassword(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
+}
+
+func HashPassword(password string) string {
+	// Set the bcrypt cost factor (14 is a reasonable default)
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
 		log.Println("Error hashing password:", err)
-		return "", err
+		panic(err)
 	}
+	return string(bytes)
 
-	return string(hashedPassword), nil
 }
 
 // CheckPassword compares the entered password with the hashed password
@@ -75,14 +88,77 @@ func ValidateToken(tokenStr string) (string, int64, error) {
 		}
 
 		// Convert user ID from string to int64, if it's not already in the correct format
-		userID, err := strconv.ParseInt(claims.UserID, 10, 64)
-		if err != nil {
-			return "", 0, errors.New("invalid user id in token")
-		}
+		userID := claims.UserID
 
 		// Return the email and user ID from the token claims
 		return claims.Email, userID, nil
 	}
 
 	return "", 0, errors.New("invalid token")
+}
+
+func GenerateUsertag(firstname string) string {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	randomNumber := rng.Intn(999999-100000+1) + 100000
+	Usertag := firstname[:3]
+	Usertag = strings.ToUpper(Usertag)
+	return Usertag + strconv.Itoa(randomNumber)
+}
+
+func FindUserByUsertag(usertag string) (*models.User, error) {
+	db := database.NewConnection()
+	defer db.Close()
+	query := `
+		SELECT usertag, email, password, first_name, last_name, created_at, updated_at 
+		FROM users 
+		WHERE usertag = ?
+	`
+	var user models.User
+	err := db.QueryRow(query, usertag).Scan(
+		&user.Usertag,
+		&user.Email,
+		&user.Password,
+		&user.FirstName,
+		&user.LastName,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Return nil if no user is found
+			return nil, nil
+		}
+		return nil, fmt.Errorf("error querying user by usertag: %w", err)
+	}
+	return &user, nil
+}
+
+func FindUserByEmail(email string) (*models.User, error) {
+	db := database.NewConnection()
+	query := "SELECT usertag, email, password FROM users WHERE LOWER(email) = LOWER(?)"
+	var user models.User
+	err := db.QueryRow(query, email).Scan(&user.Usertag, &user.Email, &user.Password)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+// find a user by their ID
+func FindUserByTag(usertag string) (*models.User, error) {
+	db := database.NewConnection()
+	query := "SELECT usertag, email, password FROM users WHERE LOWER(usertag) = LOWER(?)"
+	var user models.User
+	err := db.QueryRow(query, usertag).Scan(&user.Usertag, &user.Email, &user.Password)
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &user, nil
 }
