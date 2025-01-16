@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     description TEXT,
     deadline DATETIME,  -- Store the deadline in DateTime format
     category_id INT,  -- Foreign key reference to categories table
-    usertag VARCHAR(6),  -- Foreign key reference to users(usertag)
+    usertag VARCHAR(20),  -- Foreign key reference to users(usertag)
     status ENUM('Pending', 'In Progress', 'Completed') DEFAULT 'Pending',  -- Enum for task status
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -11,6 +11,7 @@ import (
 )
 
 type UserController struct{}
+type TaskController struct{}
 
 var userServer servers.UserServer
 
@@ -150,4 +151,33 @@ func (UserController) DeleteAccount(c *fiber.Ctx) error {
 		return responses.ErrorResponse(c, err.Error(), 400)
 	}
 	return responses.SuccessResponse(c, responses.USER_DELETED, nil, 200)
+}
+
+//controller layer for task service
+
+func (TaskController) CreateTask(c *fiber.Ctx) error {
+	var body models.CreateTaskReq
+	if err := c.BodyParser(&body); err != nil {
+		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
+	}
+	body.Usertag = c.Get("usertag")
+	if body.Title == "" || body.Usertag == "" {
+		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
+	}
+	if err := userServer.CreateTask(body); err != nil {
+		return responses.ErrorResponse(c, err.Error(), 400)
+	}
+	return responses.SuccessResponse(c, responses.TASK_CREATED, nil, 200)
+}
+
+func (TaskController) GetTasks(c *fiber.Ctx) error {
+	usertag := c.Get("usertag")
+	if usertag == "" {
+		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
+	}
+	tasks, err := userServer.GetTasksByUsertag(usertag)
+	if err != nil {
+		return responses.ErrorResponse(c, err.Error(), 500)
+	}
+	return responses.SuccessResponse(c, responses.TASK_FETCHED, tasks, 200)
 }

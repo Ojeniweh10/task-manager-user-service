@@ -251,3 +251,35 @@ func (UserServer) DeleteAccount(data models.DeleteAccountReq) error {
 
 	return nil
 }
+
+// service layer for tasks
+func (UserServer) CreateTask(data models.CreateTaskReq) error {
+	query := `
+		INSERT INTO tasks (title, description, deadline, category_id, usertag, status)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+	_, err := db.Exec(query, data.Title, data.Description, data.Deadline, data.CategoryID, data.Usertag, data.Status)
+	if err != nil {
+		return fmt.Errorf("could not insert task: %v", err)
+	}
+	return nil
+}
+
+func (UserServer) GetTasksByUsertag(usertag string) ([]models.Task, error) {
+	query := `SELECT id, title, description, CAST(deadline AS DATETIME), category_id, usertag, status, created_at, updated_at FROM tasks WHERE usertag = ?`
+	rows, err := database.NewConnection().Query(query, usertag)
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch tasks: %v", err)
+	}
+	defer rows.Close()
+
+	var tasks []models.Task
+	for rows.Next() {
+		var task models.Task
+		if err := rows.Scan(&task.ID, &task.Title, &task.Description, &task.Deadline, &task.CategoryID, &task.Usertag, &task.Status, &task.CreatedAt, &task.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("error scanning task: %v", err)
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, nil
+}

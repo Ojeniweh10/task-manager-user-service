@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -55,4 +56,25 @@ type ResetPasswordRequest struct {
 type DeleteAccountReq struct {
 	Usertag         string `json:"usertag"`
 	CurrentPassword string `json:"current_password"`
+}
+
+type CreateTaskReq struct {
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Deadline    time.Time `json:"deadline"`
+	CategoryID  int       `json:"category_id"`
+	Usertag     string    `json:"usertag"`
+	Status      string    `json:"status"`
+}
+
+type Task struct {
+	ID          int          `json:"id"`
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	Deadline    sql.NullTime `json:"deadline"`
+	CategoryID  int          `json:"category_id"`
+	Usertag     string       `json:"usertag"`
+	Status      string       `json:"status"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
 }
