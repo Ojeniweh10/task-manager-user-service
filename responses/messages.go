@@ -58,6 +58,8 @@ const (
 	BLOCKED_ACCOUNT           = "blocked account. please contact cashwise support via email at hello@cashwise.finance"
 	USER_FETCHED              = "User(s) fetched successfully"
 	TASK_FETCHED              = "Task(s) fetched successfully"
+	TASK_UPDATED              = "Task updated successfully"
+	TASK_DELETED              = "Task deleted successfully"
 	NO_USER                   = "no user found"
 	SECRET_QUESTION_SET       = "2FA set successfully"
 	USER_DOES_NOT_EXIST       = "user does not exist"

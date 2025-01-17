@@ -18,7 +18,7 @@ var (
 
 // NewConnection initializes a connection to the MySQL database
 func NewConnection() *sql.DB {
-	databaseUrl := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", user, password, host, dbname)
+	databaseUrl := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?parseTime=true", user, password, host, dbname)
 	db, err := sql.Open("mysql", databaseUrl)
 	if err != nil {
 		log.Fatalf("Error connecting to database: %v\n", err)

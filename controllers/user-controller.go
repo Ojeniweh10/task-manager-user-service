@@ -181,3 +181,32 @@ func (TaskController) GetTasks(c *fiber.Ctx) error {
 	}
 	return responses.SuccessResponse(c, responses.TASK_FETCHED, tasks, 200)
 }
+
+func (TaskController) GetTaskByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+	task, err := userServer.GetTaskByID(id)
+	if err != nil {
+		return responses.ErrorResponse(c, err.Error(), 404)
+	}
+	return responses.SuccessResponse(c, responses.TASK_FETCHED, task, 200)
+}
+
+func (TaskController) UpdateTask(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var body models.UpdateTaskReq
+	if err := c.BodyParser(&body); err != nil {
+		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
+	}
+	if err := userServer.UpdateTask(id, body); err != nil {
+		return responses.ErrorResponse(c, err.Error(), 500)
+	}
+	return responses.SuccessResponse(c, responses.TASK_UPDATED, nil, 200)
+}
+
+func (TaskController) DeleteTask(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := userServer.DeleteTask(id); err != nil {
+		return responses.ErrorResponse(c, err.Error(), 500)
+	}
+	return responses.SuccessResponse(c, responses.TASK_DELETED, nil, 200)
+}

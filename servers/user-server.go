@@ -266,7 +266,7 @@ func (UserServer) CreateTask(data models.CreateTaskReq) error {
 }
 
 func (UserServer) GetTasksByUsertag(usertag string) ([]models.Task, error) {
-	query := `SELECT id, title, description, CAST(deadline AS DATETIME), category_id, usertag, status, created_at, updated_at FROM tasks WHERE usertag = ?`
+	query := `SELECT id, title, description, deadline, category_id, usertag, status, created_at, updated_at FROM tasks WHERE usertag = ?`
 	rows, err := database.NewConnection().Query(query, usertag)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch tasks: %v", err)
@@ -282,4 +282,39 @@ func (UserServer) GetTasksByUsertag(usertag string) ([]models.Task, error) {
 		tasks = append(tasks, task)
 	}
 	return tasks, nil
+}
+
+func (UserServer) GetTaskByID(id string) (*models.Task, error) {
+	query := `SELECT * FROM tasks WHERE id = ?`
+	row := db.QueryRow(query, id)
+	var task models.Task
+	if err := row.Scan(&task.ID, &task.Title, &task.Description, &task.Deadline, &task.CategoryID, &task.Usertag, &task.Status, &task.CreatedAt, &task.UpdatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("task not found")
+		}
+		return nil, fmt.Errorf("could not fetch task: %v", err)
+	}
+	return &task, nil
+}
+
+func (UserServer) UpdateTask(id string, data models.UpdateTaskReq) error {
+	query := `
+		UPDATE tasks
+		SET title = ?, description = ?, deadline = ?, status = ?
+		WHERE id = ?
+	`
+	_, err := db.Exec(query, data.Title, data.Description, data.Deadline, data.Status, id)
+	if err != nil {
+		return fmt.Errorf("could not update task: %v", err)
+	}
+	return nil
+}
+
+func (UserServer) DeleteTask(id string) error {
+	query := `DELETE FROM tasks WHERE id = ?`
+	_, err := db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("could not delete task: %v", err)
+	}
+	return nil
 }

@@ -22,5 +22,8 @@ func Routes(app *fiber.App) {
 
 	app.Post("/create-task", TaskController.CreateTask)
 	app.Get("/tasks", TaskController.GetTasks)
+	app.Get("/tasks/:id", TaskController.GetTaskByID)
+	app.Put("/tasks/:id", TaskController.UpdateTask)
+	app.Delete("tasks/:id", TaskController.DeleteTask)
 
 }
