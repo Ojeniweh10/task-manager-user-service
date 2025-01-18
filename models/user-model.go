@@ -84,4 +84,15 @@ type UpdateTaskReq struct {
 	Description string    `json:"description"`
 	Deadline    time.Time `json:"deadline"`
 	Status      string    `json:"status"`
+	Usertag     string    `json:"usertag"`
+}
+
+type AuditLog struct {
+	ID         int       `json:"id"`
+	Usertag    string    `json:"usertag"`
+	Action     string    `json:"action"`
+	Resource   string    `json:"resource"`
+	ResourceID int       `json:"resource_id"`
+	Details    string    `json:"details"`
+	Timestamp  time.Time `json:"timestamp"`
 }

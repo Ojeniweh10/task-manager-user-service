@@ -194,6 +194,10 @@ func (TaskController) GetTaskByID(c *fiber.Ctx) error {
 func (TaskController) UpdateTask(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var body models.UpdateTaskReq
+	body.Usertag = c.Get("usertag")
+	if body.Usertag == "" {
+		return responses.ErrorResponse(c, responses.INCOMPLETE_DATA, 400)
+	}
 	if err := c.BodyParser(&body); err != nil {
 		return responses.ErrorResponse(c, responses.BAD_DATA, 400)
 	}
@@ -205,7 +209,8 @@ func (TaskController) UpdateTask(c *fiber.Ctx) error {
 
 func (TaskController) DeleteTask(c *fiber.Ctx) error {
 	id := c.Params("id")
-	if err := userServer.DeleteTask(id); err != nil {
+	usertag := c.Get("usertag")
+	if err := userServer.DeleteTask(id, usertag); err != nil {
 		return responses.ErrorResponse(c, err.Error(), 500)
 	}
 	return responses.SuccessResponse(c, responses.TASK_DELETED, nil, 200)
